@@ -8,12 +8,21 @@ export const env = (key: string) => process.env[key] || ""
 
 export const json = (data: unknown, status = 200) => Response.json(data, { status })
 
+class NoRealtime {
+  constructor() {
+    throw new Error("Realtime is not used on the server.")
+  }
+}
+
 let client: SupabaseClient | null = null
 export function db(): SupabaseClient {
   if (!client) {
     if (!env("VITE_SUPABASE_URL") || !env("SUPABASE_SECRET_KEY")) throw new Error("Supabase is not configured.")
     client = createClient(env("VITE_SUPABASE_URL"), env("SUPABASE_SECRET_KEY"), {
       auth: { persistSession: false, autoRefreshToken: false },
+      // The server never opens realtime channels. Without a transport, supabase-js looks for a
+      // native WebSocket at startup and throws on runtimes older than Node 22.
+      realtime: { transport: NoRealtime as never },
     })
   }
   return client
