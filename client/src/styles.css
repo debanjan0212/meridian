@@ -78,7 +78,6 @@ em.gold { color: var(--gold2); }
 .hero-grid { position: relative; display: grid; grid-template-columns: 1fr minmax(300px, 420px) .8fr; gap: 32px; align-items: center; min-height: 640px; padding: 24px 0; }
 .stack-abs { position: relative; }
 .stack-abs > * { position: absolute; inset: 0 0 auto 0; }
-.arch { width: min(420px, 82vw); height: min(560px, 110vw); border-radius: 210px 210px 32px 32px; overflow: hidden; box-shadow: 0 50px 90px rgba(0, 0, 0, .55); }
 .bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; flex: 1; }
 .bar { height: 3px; border-radius: 999px; background: rgba(243, 238, 230, .18); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--gold2); }
@@ -131,3 +130,34 @@ em.gold { color: var(--gold2); }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .rise { animation: rowIn 600ms var(--ease) both; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* suggestions dropdown */
+.combo { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.combo > label, .field > label { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.combo-list { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; right: 0; min-width: 260px; margin: 0; padding: 6px; list-style: none; border-radius: 16px; background: rgba(20, 26, 30, .97); border: 1px solid var(--line2); box-shadow: 0 24px 60px rgba(0, 0, 0, .55); backdrop-filter: blur(14px); animation: rowIn 180ms var(--ease) both; }
+.combo-head { padding: 8px 12px 4px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.combo-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.combo-item[aria-selected="true"] { background: #232a2f; }
+.combo-hint { font-size: 12px; color: var(--gold2); white-space: nowrap; }
+
+/* chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line2); background: transparent; color: var(--soft); font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip:hover { border-color: #56606a; color: var(--ivory); }
+.chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+.prompt { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(233, 207, 156, .25); background: rgba(233, 207, 156, .06); color: var(--gold2); font-size: 13px; cursor: pointer; }
+.prompt:hover { background: rgba(233, 207, 156, .14); }
+
+/* header selects */
+.select { min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line2); background: var(--surface2); color: var(--soft); font-size: 13px; cursor: pointer; }
+
+/* hero frame: a turning gradient edge and a glow in the slide's colour; tilts with the mouse */
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.frame-wrap { position: relative; perspective: 1100px; }
+.frame { position: relative; padding: 6px; background: conic-gradient(from var(--spin), #f3d79c, #ff9f8f, #c9a2ff, #6fd4b8, #7fb8ff, #f3d79c); animation: spin 9s linear infinite; transition: border-radius 900ms var(--ease), transform 300ms var(--ease); transform-style: preserve-3d; will-change: transform; }
+.frame::before { content: ""; position: absolute; inset: -22px; border-radius: inherit; background: inherit; filter: blur(38px); opacity: .75; z-index: -1; }
+.frame::after { content: ""; position: absolute; inset: 6px; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, 0) 32%); mix-blend-mode: soft-light; }
+.frame-inner { position: relative; overflow: hidden; width: min(420px, 82vw); height: min(560px, 110vw); background: #0d1114; transition: border-radius 900ms var(--ease); }
+.frame-inner .photo { transition: transform 300ms var(--ease); }
+.frame-glow { position: absolute; left: 10%; right: 10%; bottom: -40px; height: 80px; border-radius: 50%; filter: blur(40px); transition: background-color 1100ms ease; z-index: -2; }
+@keyframes spin { to { --spin: 360deg; } }

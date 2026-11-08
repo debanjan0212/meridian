@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { budgetPresets, currencyFor, FALLBACK_RATES, formatMoney, nice } from "./currency"
 import { destinations, safeNext, withPrefix } from "./destinations"
 import { comparison, extendPass, LAUNCH_ENDS, planById, PLANS, priceFor } from "./pricing"
 import { legPairs, move, nightsStatus, schedule, totals, type Stop } from "./route"
@@ -142,5 +143,28 @@ describe("search suggestions", () => {
     expect(safeNext("/\\evil.com", "/plan")).toBe("/plan")
     expect(safeNext("https://evil.com", "/plan")).toBe("/plan")
     expect(safeNext(null, "/plan")).toBe("/plan")
+  })
+})
+
+describe("currency", () => {
+  const rates = { ...FALLBACK_RATES, USD: 0.012 }
+  it("guesses the currency from time zone first, then region, then language", () => {
+    expect(currencyFor("en-US", "Asia/Kolkata")).toBe("INR")
+    expect(currencyFor("en-GB", "Europe/London")).toBe("GBP")
+    expect(currencyFor("de-DE")).toBe("EUR")
+    expect(currencyFor("ja")).toBe("JPY")
+    expect(currencyFor("sw")).toBe("USD")
+  })
+  it("rounds presets to clean amounts and keeps INR exact", () => {
+    expect(nice(565.4)).toBe(570)
+    expect(nice(2260)).toBe(2300)
+    expect(budgetPresets("INR", rates)[2]).toEqual({ inr: 200000, shown: 200000 })
+    const usd = budgetPresets("USD", rates)[2]
+    expect(usd.shown).toBe(2400)
+    expect(usd.inr).toBe(200000)
+  })
+  it("formats with the right symbol and Indian grouping for rupees", () => {
+    expect(formatMoney(200000, "INR")).toBe("₹2,00,000")
+    expect(formatMoney(2400, "USD", "en-US")).toBe("$2,400")
   })
 })

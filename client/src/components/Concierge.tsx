@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react"
 import { api, ApiError } from "@/lib/api"
+import { currentLanguage } from "@/lib/translate"
 import { Icon } from "./Icon"
 
 type Msg = { role: "user" | "assistant"; content: string }
@@ -17,7 +18,7 @@ export function Concierge({ context }: { context: string }) {
     setMessages(next)
     setBusy(true)
     try {
-      const { reply } = await api<{ reply: string }>("chat", { messages: next.slice(1), context })
+      const { reply } = await api<{ reply: string }>("chat", { messages: next.slice(1), context, lang: currentLanguage() })
       setMessages([...next, { role: "assistant", content: reply }])
     } catch (err) {
       setMessages([...next, { role: "assistant", content: err instanceof ApiError ? err.message : "I could not answer that just now." }])
@@ -45,7 +46,7 @@ export function Concierge({ context }: { context: string }) {
         <b>Concierge</b>
         <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close concierge"><Icon name="x" size={14} /></button>
       </div>
-      <div className="chat-log" aria-live="polite">
+      <div className="chat-log notranslate" aria-live="polite">
         {messages.map((m, i) => <div key={i} className={`bubble ${m.role === "user" ? "me" : "ai"}`}>{m.content}</div>)}
         {busy && <div className="bubble ai dim">Thinking…</div>}
         {messages.length === 1 && STARTERS.map((s) => <button key={s} className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => ask(s)}>{s}</button>)}
