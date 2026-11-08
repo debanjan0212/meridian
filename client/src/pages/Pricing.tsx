@@ -6,6 +6,7 @@ import { inr } from "@shared/route"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/Icon"
+import { safeNext } from "@shared/destinations"
 
 type Checkout = { orderId: string; sessionId: string; mode: "sandbox" | "production" }
 type Verify = { status: string; passUntil: string | null }
@@ -14,7 +15,7 @@ export default function Pricing() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { session, me, refresh } = useAuth()
-  const next = params.get("next")
+  const next = params.get("next") ? safeNext(params.get("next"), "/plan") : null
   const [plan, setPlan] = useState<PlanId>("month")
   const [phone, setPhone] = useState("")
   const [busy, setBusy] = useState(false)

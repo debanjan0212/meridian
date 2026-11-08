@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import type { PlacesResult, Search } from "@shared/types"
 import { addDays, inr, nightsStatus } from "@shared/route"
+import { destinations, HOME_CITIES, withPrefix } from "@shared/destinations"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { loadTrip, newTrip, saveTrip, type Candidate } from "@/lib/trip"
@@ -27,6 +28,7 @@ export default function Plan() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const last = loadTrip()
+  const places = useMemo(() => destinations(), [])
 
   const set = <K extends keyof Search>(k: K, v: Search[K]) => setSearch((s) => ({ ...s, [k]: v }))
 
@@ -69,8 +71,10 @@ export default function Plan() {
       </div>
 
       <form onSubmit={submit} className="card pad" style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", alignItems: "end" }}>
-        <div className="field"><label htmlFor="from">From</label><input id="from" className="input" value={search.from} onChange={(e) => set("from", e.target.value)} required /></div>
-        <div className="field" style={{ gridColumn: "span 2" }}><label htmlFor="to">To</label><input id="to" className="input" value={search.to} onChange={(e) => set("to", e.target.value)} placeholder="Kazakhstan and Uzbekistan, or anywhere" required /></div>
+        <div className="field"><label htmlFor="from">From</label><input id="from" className="input" list="from-list" autoComplete="off" value={search.from} onChange={(e) => set("from", e.target.value)} required />
+          <datalist id="from-list">{HOME_CITIES.map((c) => <option key={c} value={c} />)}</datalist></div>
+        <div className="field" style={{ gridColumn: "span 2" }}><label htmlFor="to">To</label><input id="to" className="input" list="to-list" autoComplete="off" value={search.to} onChange={(e) => set("to", e.target.value)} placeholder="Start typing: Swi… or Kazakhstan, Uzbekistan" required />
+          <datalist id="to-list">{withPrefix(search.to, places).map((c) => <option key={c} value={c} />)}</datalist></div>
         <div className="field"><label htmlFor="start">Start</label><input id="start" type="date" className="input" min={today()} value={search.start} onChange={(e) => set("start", e.target.value)} required /></div>
         <div className="field"><label htmlFor="nights">Nights</label><input id="nights" type="number" min={1} max={30} className="input" value={search.nights} onChange={(e) => set("nights", Number(e.target.value))} required /></div>
         <div className="field"><label htmlFor="budget">Budget (₹, total)</label><input id="budget" type="number" min={1000} step={1000} className="input" value={search.budget} onChange={(e) => set("budget", Number(e.target.value))} required /></div>
