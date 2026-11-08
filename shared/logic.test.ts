@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { destinations, safeNext, withPrefix } from "./destinations"
 import { comparison, extendPass, LAUNCH_ENDS, planById, PLANS, priceFor } from "./pricing"
 import { legPairs, move, nightsStatus, schedule, totals, type Stop } from "./route"
 import { isAdmin, searchError } from "./server"
@@ -117,5 +118,29 @@ describe("transport legs", () => {
     const s = (id: string, nights: number): Stop => ({ place: place(id), nights, hotelId: null })
     const pairs = legPairs([s("almaty", 3), s("charyn", 0), s("bishkek", 2), s("tashkent", 2)])
     expect(pairs.map((p) => [p.key, p.dayTrip])).toEqual([["almaty>charyn", true], ["almaty>bishkek", false], ["bishkek>tashkent", false]])
+  })
+})
+
+describe("search suggestions", () => {
+  it("lists real countries and regions, without group codes or duplicates", () => {
+    const all = destinations()
+    expect(all).toContain("Switzerland")
+    expect(all).toContain("Kazakhstan")
+    expect(all).toContain("Anywhere")
+    expect(all).not.toContain("European Union")
+    expect(all).not.toContain("Unknown Region")
+    expect(new Set(all).size).toBe(all.length)
+  })
+  it("suggests the next country after a comma and skips ones already typed", () => {
+    const opts = withPrefix("Kazakhstan, Uz", ["Kazakhstan", "Uzbekistan"])
+    expect(opts).toEqual(["Kazakhstan, Uzbekistan"])
+    expect(withPrefix("Swi", ["Switzerland"])).toEqual(["Switzerland"])
+  })
+  it("only follows same-site next links", () => {
+    expect(safeNext("/trip", "/plan")).toBe("/trip")
+    expect(safeNext("//evil.com", "/plan")).toBe("/plan")
+    expect(safeNext("/\\evil.com", "/plan")).toBe("/plan")
+    expect(safeNext("https://evil.com", "/plan")).toBe("/plan")
+    expect(safeNext(null, "/plan")).toBe("/plan")
   })
 })

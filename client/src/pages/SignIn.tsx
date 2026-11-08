@@ -3,13 +3,14 @@ import { Navigate, useSearchParams } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth"
 import { Photo } from "@/components/Photo"
+import { safeNext } from "@shared/destinations"
 
 type Method = "google" | "email" | "password"
 
 export default function SignIn() {
   const { session } = useAuth()
   const [params] = useSearchParams()
-  const next = params.get("next") || "/plan"
+  const next = safeNext(params.get("next"), "/plan")
   const [method, setMethod] = useState<Method>("google")
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
