@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { inr, legPairs, schedule } from "@shared/route"
+import { legPairs, schedule } from "@shared/route"
+import { usePrefs } from "@/lib/prefs"
 import { visaFor } from "@shared/visa"
 import { api, ApiError } from "@/lib/api"
 import { useTrip } from "@/lib/trip"
@@ -10,6 +11,7 @@ type Item = { key: string; title: string; sub: string; action: JSX.Element | nul
 
 export default function Book() {
   const [trip, setTrip] = useTrip()
+  const { money } = usePrefs()
   const [links, setLinks] = useState<{ url: string; provider: string }[] | null>(null)
   const [linkMsg, setLinkMsg] = useState("")
   if (!trip) return <div className="wrap" style={{ padding: 80 }}><Link to="/plan">Plan a trip first →</Link></div>
@@ -30,7 +32,7 @@ export default function Book() {
   if (flight) items.push({
     key: "flight",
     title: `Flights · ${flight.carrier}`,
-    sub: `${inr(flight.price)} for ${trip.search.adults} · ${flight.depart.slice(0, 10)}`,
+    sub: `${money(flight.price)} for ${trip.search.adults} · ${flight.depart.slice(0, 10)}`,
     action: links ? <span className="row">{links.map((l) => <a key={l.url} className="btn small" href={l.url} target="_blank" rel="noopener noreferrer">{l.provider} <Icon name="out" size={14} /></a>)}</span>
       : <button className="btn small" onClick={findLinks}>Get booking link</button>,
   })
@@ -38,7 +40,7 @@ export default function Book() {
     if (!s.nights) return
     const opts = trip.hotels[`${s.place.id}|${sched[i].checkin}|${sched[i].checkout}`]
     const h = opts?.find((x) => x.id === s.hotelId) ?? opts?.[0]
-    if (h) items.push({ key: `stay:${s.place.id}`, title: `Stay · ${h.name}`, sub: `${s.place.name} · ${sched[i].checkin} → ${sched[i].checkout} · ${inr(h.total)}`, action: <a className="btn small" href={h.bookUrl} target="_blank" rel="noopener noreferrer">Booking.com <Icon name="out" size={14} /></a> })
+    if (h) items.push({ key: `stay:${s.place.id}`, title: `Stay · ${h.name}`, sub: `${s.place.name} · ${sched[i].checkin} → ${sched[i].checkout} · ${money(h.total)}`, action: <a className="btn small" href={h.bookUrl} target="_blank" rel="noopener noreferrer">Booking.com <Icon name="out" size={14} /></a> })
   })
   legPairs(trip.stops).forEach(({ a, b, key, dayTrip }) => {
     const o = trip.legs[key]?.options[trip.legChoice[key] ?? 0]

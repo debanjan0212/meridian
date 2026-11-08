@@ -2,6 +2,7 @@ import { StrictMode, lazy, Suspense, type ReactNode } from "react"
 import { createRoot } from "react-dom/client"
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { AuthProvider, useAuth } from "@/lib/auth"
+import { PrefsProvider } from "@/lib/prefs"
 import { Footer, Header } from "@/components/Header"
 import Landing from "@/pages/Landing"
 import "./styles.css"
@@ -27,6 +28,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
+      <PrefsProvider>
       <AuthProvider>
         <Header />
         <main>
@@ -48,6 +50,7 @@ createRoot(document.getElementById("root")!).render(
         </main>
         <Footer />
       </AuthProvider>
+      </PrefsProvider>
     </BrowserRouter>
   </StrictMode>,
 )

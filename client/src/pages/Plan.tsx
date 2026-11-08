@@ -2,7 +2,11 @@ import { useMemo, useState, type FormEvent } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import type { PlacesResult, Search } from "@shared/types"
 import { addDays, inr, nightsStatus } from "@shared/route"
-import { destinations, HOME_CITIES, withPrefix } from "@shared/destinations"
+import { HOME_CITIES } from "@shared/destinations"
+import { PlaceInput } from "@/components/PlaceInput"
+import { BudgetField } from "@/components/BudgetField"
+import { usePrefs } from "@/lib/prefs"
+import { allDestinations, destinationIdeas, homeIdeas } from "@/lib/suggest"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { loadTrip, newTrip, saveTrip, type Candidate } from "@/lib/trip"
@@ -19,16 +23,17 @@ export default function Plan() {
   const [search, setSearch] = useState<Search>({
     from: params.get("from") || "Bengaluru",
     to: params.get("to") || "",
-    start: addDays(today(), 30),
-    nights: 10,
+    start: params.get("start") && params.get("start")! >= today() ? params.get("start")! : addDays(today(), 30),
+    nights: Number(params.get("nights")) || 10,
     budget: Number(params.get("budget")) || 200000,
-    adults: 2,
+    adults: Number(params.get("adults")) || 2,
   })
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const last = loadTrip()
-  const places = useMemo(() => destinations(), [])
+  const ideas = useMemo(destinationIdeas, [])
+  const { money } = usePrefs()
 
   const set = <K extends keyof Search>(k: K, v: Search[K]) => setSearch((s) => ({ ...s, [k]: v }))
 
@@ -71,13 +76,11 @@ export default function Plan() {
       </div>
 
       <form onSubmit={submit} className="card pad" style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", alignItems: "end" }}>
-        <div className="field"><label htmlFor="from">From</label><input id="from" className="input" list="from-list" autoComplete="off" value={search.from} onChange={(e) => set("from", e.target.value)} required />
-          <datalist id="from-list">{HOME_CITIES.map((c) => <option key={c} value={c} />)}</datalist></div>
-        <div className="field" style={{ gridColumn: "span 2" }}><label htmlFor="to">To</label><input id="to" className="input" list="to-list" autoComplete="off" value={search.to} onChange={(e) => set("to", e.target.value)} placeholder="Start typing: Swi… or Kazakhstan, Uzbekistan" required />
-          <datalist id="to-list">{withPrefix(search.to, places).map((c) => <option key={c} value={c} />)}</datalist></div>
+        <PlaceInput id="from" label="From" value={search.from} onChange={(v) => set("from", v)} options={HOME_CITIES} featured={homeIdeas()} placeholder="Your city" />
+        <div style={{ gridColumn: "span 2" }}><PlaceInput id="to" label="To" value={search.to} onChange={(v) => set("to", v)} options={allDestinations()} featured={ideas} placeholder="Anywhere, or pick countries" multi /></div>
         <div className="field"><label htmlFor="start">Start</label><input id="start" type="date" className="input" min={today()} value={search.start} onChange={(e) => set("start", e.target.value)} required /></div>
         <div className="field"><label htmlFor="nights">Nights</label><input id="nights" type="number" min={1} max={30} className="input" value={search.nights} onChange={(e) => set("nights", Number(e.target.value))} required /></div>
-        <div className="field"><label htmlFor="budget">Budget (₹, total)</label><input id="budget" type="number" min={1000} step={1000} className="input" value={search.budget} onChange={(e) => set("budget", Number(e.target.value))} required /></div>
+        <div style={{ gridColumn: "span 2" }}><BudgetField id="budget" valueInr={search.budget} onChange={(v) => set("budget", v)} /></div>
         <div className="field"><label htmlFor="adults">Travellers</label><input id="adults" type="number" min={1} max={9} className="input" value={search.adults} onChange={(e) => set("adults", Number(e.target.value))} required /></div>
         <button className="btn gold" disabled={busy}>{busy ? "Finding places…" : "Suggest places"}</button>
       </form>
@@ -129,7 +132,7 @@ export default function Plan() {
               <div className="meter"><span style={{ width: `${Math.min(100, (used / search.nights) * 100)}%`, background: status.tone === "over" ? "var(--over)" : "var(--gold2)" }} /></div>
               <span style={{ fontWeight: 700, color: status.tone === "ok" ? "var(--sage)" : status.tone === "free" ? "var(--gold2)" : "var(--over)" }}>{status.text}</span>
               <div className="row" style={{ gap: 6 }}>{picked.map((p) => <span key={p.id} className="pill glass">{p.name}</span>)}</div>
-              <span className="dim" style={{ fontSize: 13 }}>Budget {inr(search.budget)} for {search.adults}. Flights and stays are priced live on the next step.</span>
+              <span className="dim" style={{ fontSize: 13 }}>Budget {money(search.budget)} for {search.adults}. Flights and stays are priced live on the next step.</span>
               <button className="btn primary" disabled={!picked.length || status.tone === "over"} onClick={build}>Build my plan <Icon name="arrow" /></button>
             </div>
             {result.tips.length > 0 && (

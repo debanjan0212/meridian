@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/Icon"
 import { safeNext } from "@shared/destinations"
+import { usePrefs } from "@/lib/prefs"
 
 type Checkout = { orderId: string; sessionId: string; mode: "sandbox" | "production" }
 type Verify = { status: string; passUntil: string | null }
@@ -22,6 +23,7 @@ export default function Pricing() {
   const [msg, setMsg] = useState("")
   const launch = new Date() <= LAUNCH_ENDS
   const mode = me?.paymentsMode ?? "off"
+  const { currency, money } = usePrefs()
 
   const verify = async (orderId: string) => {
     const v = await api<Verify>("verify", { orderId })
@@ -92,6 +94,7 @@ export default function Pricing() {
                 {price < p.regular && <s className="dim" style={{ fontSize: 18 }}>{inr(p.regular)}</s>}
               </span>
               <span className="muted" style={{ fontSize: 14 }}>{p.note} · {p.days} days</span>
+              {currency !== "INR" && <span className="dim" style={{ fontSize: 13 }}>≈ {money(price)} · charged in rupees</span>}
               {compare && <span style={{ fontSize: 13, color: "var(--sage)", fontWeight: 600 }}>{inr(compare.amount)} as {compare.label} · save {save}%</span>}
             </button>
           )

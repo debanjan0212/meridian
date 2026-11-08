@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { GEMS, HERO } from "@shared/explore"
 import { Photo } from "@/components/Photo"
 import { Icon } from "@/components/Icon"
+import { PlaceInput } from "@/components/PlaceInput"
+import { BudgetField } from "@/components/BudgetField"
+import { usePrefs } from "@/lib/prefs"
+import { allDestinations, destinationIdeas, homeIdeas } from "@/lib/suggest"
+import { HOME_CITIES } from "@shared/destinations"
 
 const DUR = 6000
 const EASE = "cubic-bezier(.22,.8,.2,1)"
@@ -48,16 +53,7 @@ function Hero() {
           </div>
         </div>
 
-        <div style={{ position: "relative", display: "flex", justifyContent: "center" }}>
-          <div className="stack-abs arch" style={{ animation: "floaty 7s ease-in-out infinite" }}>
-            {HERO.map((s, i) => (
-              <div key={s.name} aria-hidden={i !== idx} style={{ height: "100%", opacity: i === idx || i === prev ? 1 : 0, animation: i === idx ? `heroIn 1000ms ${EASE} both` : i === prev ? `heroOut 800ms ${EASE} both` : "none" }}>
-                <Photo file={s.file} q={s.q} alt={`${s.name}: ${s.why}`} style={{ height: "100%" }} />
-              </div>
-            ))}
-          </div>
-          {cur.offbeat && <span className="pill ok" style={{ position: "absolute", top: 120, left: 0 }}>Hidden gem</span>}
-        </div>
+        <Frame idx={idx} prev={prev} tint={cur.tint} offbeat={!!cur.offbeat} />
 
         <div className="stack hero-side" style={{ gap: 26, alignSelf: "stretch", justifyContent: "space-between", textAlign: "right" }}>
           <div className="row" style={{ justifyContent: "flex-end" }}>
@@ -90,25 +86,77 @@ function Hero() {
   )
 }
 
+/** The photo frame: a slowly turning gradient edge, a glow in the slide's colour, arch and rectangle in turn, and a tilt toward the mouse. */
+function Frame({ idx, prev, tint, offbeat }: { idx: number; prev: number; tint: string; offbeat: boolean }) {
+  const frame = useRef<HTMLDivElement>(null)
+  const arch = idx % 2 === 0
+  const outer = arch ? "214px 214px 30px 30px" : "30px"
+  const inner = arch ? "208px 208px 24px 24px" : "24px"
+  const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+  const tilt = (e: PointerEvent<HTMLDivElement>) => {
+    if (reduced || e.pointerType !== "mouse" || !frame.current) return
+    const r = frame.current.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    frame.current.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 12}deg) translateZ(20px)`
+    frame.current.querySelectorAll<HTMLElement>(".photo").forEach((p) => (p.style.transform = `scale(1.08) translate(${-x * 16}px, ${-y * 16}px)`))
+  }
+  const reset = () => {
+    if (!frame.current) return
+    frame.current.style.transform = ""
+    frame.current.querySelectorAll<HTMLElement>(".photo").forEach((p) => (p.style.transform = ""))
+  }
+
+  return (
+    <div className="frame-wrap" style={{ display: "flex", justifyContent: "center", animation: "floaty 7s ease-in-out infinite" }} onPointerMove={tilt} onPointerLeave={reset}>
+      <div ref={frame} className="frame" style={{ borderRadius: outer, boxShadow: `0 40px 120px -30px ${tint}` }}>
+        <div className="frame-inner" style={{ borderRadius: inner }}>
+          {HERO.map((s, i) => (
+            <div key={s.name} aria-hidden={i !== idx} style={{ position: "absolute", inset: 0, opacity: i === idx || i === prev ? 1 : 0, animation: i === idx ? `heroIn 1000ms ${EASE} both` : i === prev ? `heroOut 800ms ${EASE} both` : "none" }}>
+              <Photo file={s.file} q={s.q} alt={`${s.name}: ${s.why}`} style={{ height: "100%" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="frame-glow" style={{ background: tint }} />
+      {offbeat && <span className="pill ok" style={{ position: "absolute", top: 120, left: -8 }}>Hidden gem</span>}
+    </div>
+  )
+}
+
 function SearchBar() {
   const navigate = useNavigate()
-  const submit = (e: FormEvent<HTMLFormElement>) => {
+  const { money } = usePrefs()
+  const [from, setFrom] = useState("")
+  const [to, setTo] = useState("")
+  const [budget, setBudget] = useState(200_000)
+  const ideas = useMemo(destinationIdeas, [])
+  const go = (p: Record<string, string | number | undefined>) => navigate(`/plan?${new URLSearchParams(Object.entries(p).flatMap(([k, v]) => (v === undefined ? [] : [[k, String(v)]])))}`)
+  const submit = (e: FormEvent) => {
     e.preventDefault()
-    const f = new FormData(e.currentTarget)
-    const p = new URLSearchParams()
-    for (const k of ["from", "to", "budget"]) if (String(f.get(k) || "").trim()) p.set(k, String(f.get(k)).trim())
-    navigate(`/plan?${p}`)
+    go({ ...(from.trim() && { from: from.trim() }), ...(to.trim() && { to: to.trim().replace(/,\s*$/, "") }), budget })
   }
+  const nextMarch = `${new Date().getMonth() > 2 ? new Date().getFullYear() + 1 : new Date().getFullYear()}-03-20`
+  const prompts = [
+    { text: `Mountains in March · ${money(200_000)} for two`, p: { to: "Kazakhstan, Kyrgyzstan", start: nextMarch, nights: 11, budget: 200_000, adults: 2 } },
+    { text: `A beach week this winter · ${money(150_000)}`, p: { to: "Thailand", nights: 7, budget: 150_000, adults: 2 } },
+    { text: `Hidden gems in Europe · ${money(250_000)}`, p: { to: "Albania, Georgia", nights: 10, budget: 250_000, adults: 2 } },
+    { text: `Long weekend near Bengaluru · ${money(30_000)}`, p: { to: "Gandikota", nights: 3, budget: 30_000, adults: 2 } },
+  ]
   return (
-    <form onSubmit={submit} className="card row" style={{ padding: 10, gap: 6 }} role="search" aria-label="Plan a trip">
-      {[["from", "From", "Your city"], ["to", "To", "Anywhere, or type countries"], ["budget", "Budget (₹)", "200000"]].map(([name, label, ph]) => (
-        <div key={name} className="field" style={{ flex: name === "to" ? "2 1 240px" : "1 1 160px", padding: "8px 14px" }}>
-          <label htmlFor={`q-${name}`}>{label}</label>
-          <input id={`q-${name}`} name={name} placeholder={ph} inputMode={name === "budget" ? "numeric" : undefined} style={{ border: 0, background: "transparent", fontSize: 17, padding: 0, width: "100%" }} />
-        </div>
-      ))}
-      <button className="btn gold" style={{ minHeight: 60, borderRadius: 16 }}>Plan my trip <Icon name="arrow" /></button>
-    </form>
+    <div className="stack" style={{ gap: 14 }}>
+      <form onSubmit={submit} className="card" style={{ padding: 18, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", alignItems: "start" }} role="search" aria-label="Plan a trip">
+        <PlaceInput id="q-from" label="From" value={from} onChange={setFrom} options={HOME_CITIES} featured={homeIdeas()} placeholder="Your city" />
+        <PlaceInput id="q-to" label="To" value={to} onChange={setTo} options={allDestinations()} featured={ideas} placeholder="Anywhere, or pick countries" multi />
+        <BudgetField id="q-budget" valueInr={budget} onChange={setBudget} />
+        <button className="btn gold" style={{ minHeight: 56, borderRadius: 16, alignSelf: "end" }}>Plan my trip <Icon name="arrow" /></button>
+      </form>
+      <div className="row" style={{ gap: 8 }}>
+        <span className="dim" style={{ fontSize: 13 }}>Try:</span>
+        {prompts.map((x) => <button key={x.text} type="button" className="prompt" onClick={() => go(x.p)}>{x.text}</button>)}
+      </div>
+    </div>
   )
 }
 

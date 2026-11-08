@@ -1,13 +1,16 @@
 import { Link, NavLink } from "react-router-dom"
 import { useAuth } from "@/lib/auth"
+import { LANGUAGES, languageName, usePrefs } from "@/lib/prefs"
+import { CURRENCIES, type Currency } from "@shared/currency"
 
 export function Header() {
   const { session, me, signOut } = useAuth()
+  const { currency, setCurrency, lang, setLang } = usePrefs()
   const link = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "")
   return (
     <header className="topbar">
       <div className="wrap">
-        <Link to="/" className="brand">Meridian</Link>
+        <Link to="/" className="brand" translate="no">Meridian</Link>
         <nav className="nav" aria-label="Main">
           <NavLink to="/explore" className={link}>Explore</NavLink>
           <NavLink to="/plan" className={link}>Plan a trip</NavLink>
@@ -15,11 +18,20 @@ export function Header() {
           {session && <NavLink to="/trips" className={link}>My trips</NavLink>}
           {me?.admin && <NavLink to="/admin" className={link}>Admin</NavLink>}
         </nav>
-        {session ? (
-          <button className="btn small" onClick={signOut}>Sign out</button>
-        ) : (
-          <Link to="/signin" className="btn small gold">Sign in</Link>
-        )}
+        <div className="row" style={{ gap: 8 }}>
+          <select className="select notranslate" aria-label="Language" value={lang} onChange={(e) => setLang(e.target.value)}>
+            <option value="auto">🌐 Auto</option>
+            {LANGUAGES.map((l) => <option key={l} value={l}>{languageName(l)}</option>)}
+          </select>
+          <select className="select notranslate" aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {session ? (
+            <button className="btn small" onClick={signOut}>Sign out</button>
+          ) : (
+            <Link to="/signin" className="btn small gold">Sign in</Link>
+          )}
+        </div>
       </div>
     </header>
   )

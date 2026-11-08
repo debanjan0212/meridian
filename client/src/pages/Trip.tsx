@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Link, Navigate, useNavigate } from "react-router-dom"
 import type { Flight, Hotel, Leg } from "@shared/types"
-import { addDays, inr, legPairs, move, nightsStatus, schedule, totals, type Stop } from "@shared/route"
+import { addDays, legPairs, move, nightsStatus, schedule, totals, type Stop } from "@shared/route"
 import { visaFor } from "@shared/visa"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
+import { usePrefs } from "@/lib/prefs"
 import { supabase } from "@/lib/supabase"
 import { useTrip, type Trip as TripT } from "@/lib/trip"
 import { Photo } from "@/components/Photo"
@@ -17,6 +18,7 @@ const hours = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`
 
 export default function Trip() {
   const { me } = useAuth()
+  const { money, currency, fromInr, toInr } = usePrefs()
   const navigate = useNavigate()
   const [trip, setTrip] = useTrip()
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -111,7 +113,7 @@ export default function Trip() {
     setSaving("Saved")
   }
 
-  const context = `${trip.result.title}. From ${trip.search.from}, starting ${trip.search.start}, ${trip.search.adults} adults, budget ${inr(trip.search.budget)}. Route: ${stops.map((s) => `${s.place.name} (${s.place.country}, ${s.nights} nights)`).join(" → ")}. Estimated total ${inr(sum.total)}.`
+  const context = `${trip.result.title}. From ${trip.search.from}, starting ${trip.search.start}, ${trip.search.adults} adults, budget ${money(trip.search.budget)}. Route: ${stops.map((s) => `${s.place.name} (${s.place.country}, ${s.nights} nights)`).join(" → ")}. Estimated total ${money(sum.total)}.`
 
   return (
     <div className="wrap stack" style={{ padding: "40px 24px 120px", gap: 28 }}>
@@ -175,7 +177,7 @@ export default function Trip() {
                       <div className="row" style={{ justifyContent: "space-between" }}>
                         <span style={{ fontSize: 13, color: "var(--soft)" }}>
                           <span className="dim">Stay:</span>{" "}
-                          {chosen ? <><b style={{ color: "var(--ivory)" }}>{chosen.name}</b> · {inr(chosen.total)} for {s.nights} night{s.nights > 1 ? "s" : ""}</> : errors[hk] ? <span className="error">{errors[hk]}</span> : options ? "No rooms found for these dates" : "Finding stays…"}
+                          {chosen ? <><b style={{ color: "var(--ivory)" }}>{chosen.name}</b> · {money(chosen.total)} for {s.nights} night{s.nights > 1 ? "s" : ""}</> : errors[hk] ? <span className="error">{errors[hk]}</span> : options ? "No rooms found for these dates" : "Finding stays…"}
                         </span>
                         {options && options.length > 1 && <button className="btn small" aria-expanded={open === s.place.id} onClick={() => setOpen(open === s.place.id ? null : s.place.id)}>{open === s.place.id ? "Done" : "Swap stay"}</button>}
                       </div>
@@ -186,7 +188,7 @@ export default function Trip() {
                               <Photo src={h.photo} q={`${s.place.city} hotel room`} style={{ height: 90, width: "100%" }} />
                               <span className="stack" style={{ padding: "8px 12px 12px", gap: 2 }}>
                                 <b style={{ fontSize: 13 }}>{h.name}</b>
-                                <span className="sub">{h.stars ? `${h.stars}★ · ` : ""}{inr(h.total)} total</span>
+                                <span className="sub">{h.stars ? `${h.stars}★ · ` : ""}{money(h.total)} total</span>
                               </span>
                             </button>
                           ))}
@@ -204,15 +206,15 @@ export default function Trip() {
         <aside className="sticky stack" style={{ gap: 16 }}>
           <div className="card pad stack">
             <span className="dim" style={{ fontSize: 12, letterSpacing: ".16em", textTransform: "uppercase" }}>Estimated total for {trip.search.adults}</span>
-            <span className="serif" aria-live="polite" style={{ fontSize: 48, lineHeight: 1, color: over_ > 0 ? "var(--over)" : "var(--gold2)" }}>{inr(sum.total)}</span>
-            <span style={{ fontWeight: 700, fontSize: 13, color: over_ > 0 ? "var(--over)" : "var(--sage)" }}>{over_ > 0 ? `${inr(over_)} over your ${inr(trip.search.budget)}` : `${inr(-over_)} left of ${inr(trip.search.budget)}`}</span>
+            <span className="serif" aria-live="polite" style={{ fontSize: 48, lineHeight: 1, color: over_ > 0 ? "var(--over)" : "var(--gold2)" }}>{money(sum.total)}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: over_ > 0 ? "var(--over)" : "var(--sage)" }}>{over_ > 0 ? `${money(over_)} over your ${money(trip.search.budget)}` : `${money(-over_)} left of ${money(trip.search.budget)}`}</span>
             <div className="meter"><span style={{ width: `${Math.min(100, (sum.total / trip.search.budget) * 100)}%`, background: over_ > 0 ? "var(--over)" : "var(--gold2)" }} /></div>
-            {[["Flights", sum.flights], ["Stays", sum.stays], ["Trains, buses, taxis (est.)", sum.transport], [`Food & local (${inr(trip.dailyPerPerson)}/person/day)`, sum.daily]].map(([k, v]) => (
-              <div key={k as string} className="list-row"><span className="muted">{k}</span><b>{inr(v as number)}</b></div>
+            {[["Flights", sum.flights], ["Stays", sum.stays], ["Trains, buses, taxis (est.)", sum.transport], [`Food & local (${money(trip.dailyPerPerson)}/person/day)`, sum.daily]].map(([k, v]) => (
+              <div key={k as string} className="list-row"><span className="muted">{k}</span><b>{money(v as number)}</b></div>
             ))}
             <label className="list-row" style={{ alignItems: "center" }}>
-              <span className="muted">Daily spend per person</span>
-              <input className="input" type="number" min={0} step={100} style={{ width: 110, minHeight: 36 }} value={trip.dailyPerPerson} onChange={(e) => patch({ dailyPerPerson: Math.max(0, Number(e.target.value) || 0) })} />
+              <span className="muted">{`Daily spend per person (${currency})`}</span>
+              <input className="input" type="number" min={0} style={{ width: 110, minHeight: 36 }} value={Math.round(fromInr(trip.dailyPerPerson))} onChange={(e) => patch({ dailyPerPerson: Math.max(0, Math.round(toInr(Number(e.target.value) || 0))) })} />
             </label>
             {sum.unknown > 0 && <span style={{ fontSize: 12, color: "var(--amber)" }}>{sum.unknown} item{sum.unknown > 1 ? "s" : ""} still loading or not priced yet.</span>}
             <span style={{ fontSize: 13, fontWeight: 700, color: nights.tone === "ok" ? "var(--sage)" : nights.tone === "free" ? "var(--gold2)" : "var(--over)" }}>{nights.text}</span>
@@ -233,7 +235,7 @@ export default function Trip() {
             <div role="radiogroup" aria-label="Flight" className="stack" style={{ gap: 8 }}>
               {flights.slice(0, 5).map((f) => (
                 <button key={f.id} role="radio" aria-checked={f.id === trip.flightId} className="option" onClick={() => patch({ flightId: f.id })}>
-                  <span className="list-row" style={{ width: "100%" }}><b>{f.carrier}</b><b>{inr(f.price)}</b></span>
+                  <span className="list-row" style={{ width: "100%" }}><b>{f.carrier}</b><b>{money(f.price)}</b></span>
                   <span className="sub">{time(f.depart)} → {time(f.arrive)} · {hours(f.minutes)} · {f.stops ? `${f.stops} stop${f.stops > 1 ? "s" : ""}` : "nonstop"}{f.backDepart ? ` · home ${time(f.backDepart)}` : ""}</span>
                 </button>
               ))}
@@ -262,6 +264,7 @@ export default function Trip() {
 }
 
 function LegRow({ leg, error, choice, adults, onPick, title, times }: { leg?: Leg; error?: string; choice: number; adults: number; onPick: (c: number) => void; title: string; times: number }) {
+  const { money } = usePrefs()
   return (
     <div className="leg">
       <span className="dash" aria-hidden="true" />
@@ -272,7 +275,7 @@ function LegRow({ leg, error, choice, adults, onPick, title, times }: { leg?: Le
             {leg.options.map((o, i) => (
               <button key={o.mode} role="radio" aria-checked={i === choice} className="option" onClick={() => onPick(i)}>
                 <b style={{ fontSize: 13 }}>{o.mode}</b>
-                <span className="sub">{o.duration} · {o.estInr ? `~${inr(o.estInr * adults * times)}` : "price varies"}</span>
+                <span className="sub">{o.duration} · {o.estInr ? `~${money(o.estInr * adults * times)}` : "price varies"}</span>
               </button>
             ))}
           </div>
